@@ -170,12 +170,29 @@ class Dataset(object):
 
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         image, bboxes = utils.image_preporcess(np.copy(image), [self.train_input_size, self.train_input_size], np.copy(bboxes))
+        '''
+        print('dataset.py/parse_annotation')
+        print(bboxes.shape)
+        dataset.py/parse_annotation
+        (9, 5)
+        dataset.py/parse_annotation
+        (4, 5)
+        dataset.py/parse_annotation
+        (8, 5)
+        dataset.py/parse_annotation
+        (2, 5)
+
+        Four images per batch.
+        Each contain 9, 4, 8, 2 objects respectively.
+        '''
         return image, bboxes
 
     def bbox_iou(self, boxes1, boxes2):
-        print('core/dataset.py/bbox_iou')
-        print(boxes1.shape)
-        print(boxes2.shape)
+        # print('core/dataset.py/bbox_iou')
+        '''
+        boxes1.shape: (1, 4)
+        boxes2.shape: (3, 4)
+        '''
         boxes1 = np.array(boxes1)
         boxes2 = np.array(boxes2)
 
@@ -197,16 +214,34 @@ class Dataset(object):
         return inter_area / union_area
 
     def preprocess_true_boxes(self, bboxes):
-
+        '''
+        print('preprocess_true_boxes')
+        print(bboxes.shape)
+        preprocess_true_boxes
+        (9, 5)
+        preprocess_true_boxes
+        (4, 5)
+        preprocess_true_boxes
+        (8, 5)
+        preprocess_true_boxes
+        (2, 5)
+        '''
         label = [np.zeros((self.train_output_sizes[i], self.train_output_sizes[i], self.anchor_per_scale,
                            5 + self.num_classes)) for i in range(3)]
         bboxes_xywh = [np.zeros((self.max_bbox_per_scale, 4)) for _ in range(3)]
-        bbox_count = np.zeros((3,))
+        bbox_count = np.zeros((3,)) # counter for each scale
 
         for bbox in bboxes:
+            '''
+            print(bbox.shape) 
+                => (5,)
+            '''
             bbox_coor = bbox[:4]
             bbox_class_ind = bbox[4]
-
+            '''
+            print(bbox_class_ind)
+            => 80 classes for coco
+            '''
             onehot = np.zeros(self.num_classes, dtype=np.float)
             onehot[bbox_class_ind] = 1.0
             uniform_distribution = np.full(self.num_classes, 1.0 / self.num_classes)
@@ -216,14 +251,30 @@ class Dataset(object):
             bbox_xywh = np.concatenate([(bbox_coor[2:] + bbox_coor[:2]) * 0.5, bbox_coor[2:] - bbox_coor[:2]], axis=-1)
             bbox_xywh_scaled = 1.0 * bbox_xywh[np.newaxis, :] / self.strides[:, np.newaxis]
 
+            '''
+            print('preprocess_true_boxes')
+            print(smooth_onehot.shape) => (80,)
+            print(bbox_xywh.shape)     => (4,)
+            '''
+
             iou = []
             exist_positive = False
             for i in range(3):
                 anchors_xywh = np.zeros((self.anchor_per_scale, 4))
                 anchors_xywh[:, 0:2] = np.floor(bbox_xywh_scaled[i, 0:2]).astype(np.int32) + 0.5
                 anchors_xywh[:, 2:4] = self.anchors[i]
-
+                '''
+                print('anchors_xywh')
+                print(anchors_xywh.shape) => (3,4) 
+                3 anchors per each scale
+                '''
+                # Finding best anchor for the given bounding box??
                 iou_scale = self.bbox_iou(bbox_xywh_scaled[i][np.newaxis, :], anchors_xywh)
+                '''
+                print('iou_scale') => iou_scale
+                print(iou_scale.shape) => (3,)
+                print(iou_scale)       => [0.12156238 0.1853328  0.46638767]
+                '''
                 iou.append(iou_scale)
                 iou_mask = iou_scale > 0.3
 

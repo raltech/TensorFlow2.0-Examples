@@ -31,8 +31,28 @@ total_steps = cfg.TRAIN.EPOCHS * steps_per_epoch
 
 input_tensor = tf.keras.layers.Input([416, 416, 3])
 conv_tensors = YOLOv3(input_tensor)
+'''
+print('train.py')
+print(len(conv_tensors)) => 3 
+print(conv_tensors[0].shape) => (None, 52, 52, 255)
+print(conv_tensors[1].shape) => (None, 26, 26, 255)
+print(conv_tensors[2].shape) => (None, 13, 13, 255)
+print(np.array(conv_tensors).shape) => (3,)
 
+so...
+conv_tensors: [(None, 52, 52, 255), (None, 26, 26, 255), (None, 13, 13, 255)]
+'''
+
+'''
+pred_tensor is derived from conv_tensor which is a raw output from YOLO network
+'''
 output_tensors = []
+'''note
+i iterates 0, 1, 2
+0 for small size anchor
+1 for medium size anchor
+2 for large size anchor
+'''
 for i, conv_tensor in enumerate(conv_tensors):
     pred_tensor = decode(conv_tensor, i)
     output_tensors.append(conv_tensor)
@@ -46,12 +66,53 @@ writer = tf.summary.create_file_writer(logdir)
 def train_step(image_data, target):
     with tf.GradientTape() as tape:
         pred_result = model(image_data, training=True)
+        '''
+        print('train.py/train_step')
+        pred_result is list
+        print(np.array(pred_result).shape) : (6, 4)
+        print(pred_result[0].shape) : (4, 52, 52, 255)   => conv
+        print(pred_result[1].shape) : (4, 52, 52, 3, 85) => pred
+        print(pred_result[2].shape) : (4, 26, 26, 255)   => conv
+        print(pred_result[3].shape) : (4, 26, 26, 3, 85) => pred
+        print(pred_result[4].shape) : (4, 13, 13, 255)   => conv
+        print(pred_result[5].shape) : (4, 13, 13, 3, 85) => pred
+        '''
         giou_loss=conf_loss=prob_loss=0
 
         # optimizing process
         for i in range(3):
             conv, pred = pred_result[i*2], pred_result[i*2+1]
+            '''
+            print('train.py/train_step')
+            print(conv.shape) : (4, 52, 52, 255)
+                                (4, 26, 26, 255)
+                                (4, 13, 13, 255)
+            print(pred.shape) : (4, 52, 52, 3, 85)
+                                (4, 26, 26, 3, 85)
+                                (4, 13, 13, 3, 85)
+            '''
             loss_items = compute_loss(pred, conv, *target[i], i)
+            '''
+            print('continue from here')
+            List of (batch_smaller_target, batch_medium_target, batch_larger_target)
+            print(len(target)) => 3 | select (batch_smaller_target, batch_medium_target, batch_larger_target)
+            print(len(target[0])) => 2 | select (batch_label_sbbox, batch_sbboxes)
+
+            ----- (for batch_label_sbbox)
+            print(len(target[0][0])) => 4 | batch size 
+            print(len(target[0][0][0])) => 52 | cell size
+            print(len(target[0][0][0][0])) => 52 | cell size
+            print(len(target[0][0][0][0][0])) => 3 | 3 anchors per each level
+            print(len(target[0][0][0][0][0][0])) => 85 | xywh(4), conf(1), prob(80)
+
+            ----- (for batch_sbboxes)
+            print(len(target[0][1]))    => 4
+            print(len(target[0][1][1])) => 4
+            print(len(target[0][1][3])) => 150
+
+            check dataset.py again for batch_sbboxes detail...
+            '''
+            
             giou_loss += loss_items[0]
             conf_loss += loss_items[1]
             prob_loss += loss_items[2]
@@ -86,6 +147,14 @@ def train_step(image_data, target):
 
 for epoch in range(cfg.TRAIN.EPOCHS):
     for image_data, target in trainset:
+        '''
+        image_data = batch_image
+        target = (batch_smaller_target, batch_medium_target, batch_larger_target)
+            where,
+                batch_smaller_target = batch_label_sbbox, batch_sbboxes
+                batch_medium_target  = batch_label_mbbox, batch_mbboxes
+                batch_larger_target  = batch_label_lbbox, batch_lbboxes
+        '''
         train_step(image_data, target)
     model.save_weights("./yolov3")
 
