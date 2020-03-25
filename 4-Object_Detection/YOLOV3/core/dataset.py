@@ -173,7 +173,9 @@ class Dataset(object):
         return image, bboxes
 
     def bbox_iou(self, boxes1, boxes2):
-
+        print('core/dataset.py/bbox_iou')
+        print(boxes1.shape)
+        print(boxes2.shape)
         boxes1 = np.array(boxes1)
         boxes2 = np.array(boxes2)
 

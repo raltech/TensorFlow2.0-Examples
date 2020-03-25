@@ -100,7 +100,9 @@ def decode(conv_output, i=0):
     return tf.concat([pred_xywh, pred_conf, pred_prob], axis=-1)
 
 def bbox_iou(boxes1, boxes2):
-
+    print('core/yolov3.py/bbox_iou')
+    print(boxes1.shape)
+    print(boxes2.shape)
     boxes1_area = boxes1[..., 2] * boxes1[..., 3]
     boxes2_area = boxes2[..., 2] * boxes2[..., 3]
 
