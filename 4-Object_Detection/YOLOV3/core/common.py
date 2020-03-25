@@ -41,7 +41,7 @@ def convolutional(input_layer, filters_shape, downsample=False, activate=True, b
                                   bias_initializer=tf.constant_initializer(0.))(input_layer)
 
     if bn: conv = BatchNormalization()(conv)
-    if activate == True: conv = tf.nn.relu(conv, alpha=0.1)
+    if activate == True: conv = tf.nn.relu(conv)
 
     return conv
 
